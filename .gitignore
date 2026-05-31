@@ -1,0 +1,67 @@
+# This .gitignore file should be placed at the root of your Unity project repository
+#
+# Alternatives and more detailed documentation can be found here:
+# https://github.com/github/gitignore/blob/main/Unity.gitignore
+
+# ---------------------------------------------------------------------------
+# Unity folders and files that should NOT be tracked
+# ---------------------------------------------------------------------------
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Mm]emoryCaptures/
+/[Vv]REditor/
+
+# Asset store packages can be downloaded, no need to track them in source control
+/[Aa]ssets/AssetStoreTools*
+
+# ---------------------------------------------------------------------------
+# Generated files and caches
+# ---------------------------------------------------------------------------
+# Visual Studio / Rider / VS Code generated project files
+/*.csproj
+/*.sln
+/*.suo
+/*.user
+/*.userprefs
+/*.pidb
+/*.booproj
+/*.svd
+/*.pdb
+/*.opendb
+/*.VC.db
+
+# Unity serializes crash reports and crash dumps here
+# (Can be useful locally, but should not be committed)
+/[Cc]rash[[Rr]eports]/
+
+# ---------------------------------------------------------------------------
+# OS generated files (macOS & Windows)
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# External tools and build targets
+# ---------------------------------------------------------------------------
+# Local configuration files for text editors/IDEs
+.idea/
+.vs/
+.vscode/
+*.suo
+*.ntvsca*
+*.njsproj
+*.sln.docstates
+*.slnx
+# Build outputs (if you build inside the project root)
+*.apk
+*.unitypackage
+*.bundle
