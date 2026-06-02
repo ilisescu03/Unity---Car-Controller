@@ -19,11 +19,33 @@ public class CarUI : MonoBehaviour
     [Tooltip("Suffix appended after the speed value (e.g. \" km/h\" or \" mph\").")]
     [SerializeField] private string speedUnitSuffix = " km/h";
 
+    [Tooltip("Shown only while the car is in manual-gear mode.")]
+    [SerializeField] private Text manualModeText;
+
+    [Tooltip("Shown only while the car is in automatic-gear mode.")]
+    [SerializeField] private Text automaticModeText;
+
     private void Update()
     {
         if (car == null || speedText == null) return;
 
         int displaySpeed = Mathf.RoundToInt(car.CurrentSpeed * speedUnitMultiplier);
-        speedText.text = displaySpeed + speedUnitSuffix;
+        speedText.text = displaySpeed + speedUnitSuffix + "\n" + GearLetter(car.EffectiveGear);
+
+        bool manual = car.UseManualGears;
+        if (manualModeText    != null) manualModeText.gameObject.SetActive(manual);
+        if (automaticModeText != null) automaticModeText.gameObject.SetActive(!manual);
+    }
+
+    private static string GearLetter(CarController.GearMode gear)
+    {
+        switch (gear)
+        {
+            case CarController.GearMode.Park:    return "P";
+            case CarController.GearMode.Reverse: return "R";
+            case CarController.GearMode.Neutral: return "N";
+            case CarController.GearMode.Drive:   return "D";
+            default: return "?";
+        }
     }
 }

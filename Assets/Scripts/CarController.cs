@@ -10,6 +10,10 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(Rigidbody))]
 public class CarController : MonoBehaviour
 {
+    /// <summary>Standard automatic-gearbox positions: Park / Reverse / Neutral / Drive.</summary>
+    public enum GearMode { Park, Reverse, Neutral, Drive }
+
+
     // ---------------------------------------------------------------------
     // Driving tuning
     // ---------------------------------------------------------------------
@@ -45,6 +49,13 @@ public class CarController : MonoBehaviour
 
     [Tooltip("Top speed when driving in reverse, in m/s. Motor torque is cut off above this.")]
     [SerializeField] private float maxReverseSpeed = 10f;
+
+    [Header("Transmission")]
+    [Tooltip("If enabled, W/S behavior depends on the current gear (P/R/N/D). 1=R, 2=N, 3=P, 4=D switch gears at runtime.")]
+    [SerializeField] private bool useManualGears = false;
+
+    [Tooltip("Active gear when manual gears are enabled. Switchable at runtime with 1=R, 2=N, 3=P, 4=D.")]
+    [SerializeField] private GearMode currentGear = GearMode.Park;
 
     [Header("Stability")]
     [Tooltip("Local-space offset applied to the Rigidbody's center of mass at start. A negative Y (below the wheels) dramatically reduces the risk of the car flipping during hard turns.")]
@@ -118,6 +129,32 @@ public class CarController : MonoBehaviour
     /// </summary>
     public float ForwardSpeed => rb != null ? Vector3.Dot(rb.linearVelocity, transform.forward) : 0f;
 
+    /// <summary>Whether the manual P/R/N/D gear system is currently active.</summary>
+    public bool UseManualGears => useManualGears;
+
+    /// <summary>Current gear (only meaningful when <see cref="UseManualGears"/> is true).</summary>
+    public GearMode CurrentGear => currentGear;
+
+    /// <summary>
+    /// Gear to show on the dashboard. In manual mode this is the selected gear.
+    /// In automatic mode it's inferred from the current state:
+    /// P if the handbrake is held, N when stationary with no throttle,
+    /// R while rolling backward, D otherwise.
+    /// </summary>
+    public GearMode EffectiveGear
+    {
+        get
+        {
+            if (useManualGears) return currentGear;
+            if (isBraking) return GearMode.Park;
+            float fs = ForwardSpeed;
+            bool noThrottle = Mathf.Approximately(verticalInput, 0f) && !isMotorBraking;
+            if (noThrottle && Mathf.Abs(fs) < motorBrakeSpeedThreshold) return GearMode.Neutral;
+            if (fs < 0f) return GearMode.Reverse;
+            return GearMode.Drive;
+        }
+    }
+
     // ---------------------------------------------------------------------
     // Unity lifecycle
     // ---------------------------------------------------------------------
@@ -140,10 +177,15 @@ public class CarController : MonoBehaviour
         GetInput();
         UpdateWheelPoses();
 
-        // Forward the current driving signals to the lights component.
+        // Forward the current driving signals to the lights component. In manual
+        // mode the reverse lamps follow the gear lever (on whenever R is engaged),
+        // matching a real car; in automatic mode they track reverse throttle.
         if (lights != null)
         {
-            lights.SetDrivingState(isBraking, isMotorBraking, verticalInput < 0f);
+            bool reversing = useManualGears
+                ? currentGear == GearMode.Reverse
+                : verticalInput < 0f;
+            lights.SetDrivingState(isBraking, isMotorBraking, reversing);
         }
     }
 
@@ -170,32 +212,84 @@ public class CarController : MonoBehaviour
         verticalInput = 0f;
         isMotorBraking = false;
 
-        // Steering: A/Left and D/Right.
-        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) horizontalInput = -1f;
-        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) horizontalInput = 1f;
+        // Gear switching: 1=R, 2=N, 3=P, 4=D. Edge-triggered so each press is one shift.
+        if (useManualGears)
+        {
+            if      (Keyboard.current.digit1Key.wasPressedThisFrame) currentGear = GearMode.Reverse;
+            else if (Keyboard.current.digit2Key.wasPressedThisFrame) currentGear = GearMode.Neutral;
+            else if (Keyboard.current.digit3Key.wasPressedThisFrame) currentGear = GearMode.Park;
+            else if (Keyboard.current.digit4Key.wasPressedThisFrame) currentGear = GearMode.Drive;
+        }
 
-        // Each throttle key either drives the car in its direction or acts as a
-        // motor brake when pressed against the car's current direction of motion.
+        // Steering is locked out in Park.
+        bool steeringLocked = useManualGears && currentGear == GearMode.Park;
+        if (!steeringLocked)
+        {
+            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) horizontalInput = -1f;
+            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) horizontalInput = 1f;
+        }
+
         bool forwardKey = Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed;
         bool reverseKey = Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed;
         float forwardSpeed = rb != null ? Vector3.Dot(rb.linearVelocity, transform.forward) : 0f;
 
-        // W/Up: forward throttle, or motor brake while the car is rolling backwards.
-        if (forwardKey && !reverseKey)
+        if (useManualGears)
         {
-            if (forwardSpeed < -motorBrakeSpeedThreshold) isMotorBraking = true;
-            else                                          verticalInput = 1f;
+            // Gear-locked throttle: W/S meanings depend on the selected gear.
+            switch (currentGear)
+            {
+                case GearMode.Drive:
+                    // W accelerates forward; S only motor-brakes (cannot drive in reverse).
+                    if (forwardKey && !reverseKey) verticalInput = 1f;
+                    if (reverseKey && !forwardKey) isMotorBraking = true;
+                    break;
+
+                case GearMode.Reverse:
+                    // W drives backward; S motor-brakes (cannot drive forward).
+                    if (forwardKey && !reverseKey) verticalInput = -1f;
+                    if (reverseKey && !forwardKey) isMotorBraking = true;
+                    break;
+
+                case GearMode.Neutral:
+                    // No throttle; S still motor-brakes so you can slow a coast.
+                    if (reverseKey && !forwardKey) isMotorBraking = true;
+                    break;
+
+                case GearMode.Park:
+                    // Handbrake forced on below; no throttle, no steering.
+                    break;
+            }
+        }
+        else
+        {
+            // Automatic: each throttle key drives in its direction or motor-brakes
+            // against the current direction of motion.
+            if (forwardKey && !reverseKey)
+            {
+                if (forwardSpeed < -motorBrakeSpeedThreshold) isMotorBraking = true;
+                else                                          verticalInput = 1f;
+            }
+            if (reverseKey && !forwardKey)
+            {
+                if (forwardSpeed > motorBrakeSpeedThreshold) isMotorBraking = true;
+                else                                         verticalInput = -1f;
+            }
         }
 
-        // S/Down: reverse throttle, or motor brake while the car is rolling forwards.
-        if (reverseKey && !forwardKey)
-        {
-            if (forwardSpeed > motorBrakeSpeedThreshold) isMotorBraking = true;
-            else                                         verticalInput = -1f;
-        }
-
-        // Handbrake.
-        isBraking = Keyboard.current.spaceKey.isPressed;
+        // Handbrake: Space, forced on while parked, and forced on if the gear
+        // disagrees with the current direction of motion (prevents grinding the
+        // box at speed — the car must stop before the opposite gear engages).
+        bool parkLocked = useManualGears && currentGear == GearMode.Park;
+        bool reverseSafetyBrake = useManualGears
+                                  && currentGear == GearMode.Reverse
+                                  && forwardSpeed >  motorBrakeSpeedThreshold;
+        bool driveSafetyBrake   = useManualGears
+                                  && currentGear == GearMode.Drive
+                                  && forwardSpeed < -motorBrakeSpeedThreshold;
+        isBraking = Keyboard.current.spaceKey.isPressed
+                    || parkLocked
+                    || reverseSafetyBrake
+                    || driveSafetyBrake;
 
         // Edge-triggered toggles forwarded to the lights component.
         bool lightsKey = Keyboard.current.lKey.isPressed;
