@@ -14,7 +14,7 @@
 /[Ll]ogs/
 /[Mm]emoryCaptures/
 /[Vv]REditor/
-
+/Packages/
 # Asset store packages can be downloaded, no need to track them in source control
 /[Aa]ssets/AssetStoreTools*
 

@@ -37,6 +37,12 @@ public class CarController : MonoBehaviour
     [Tooltip("Brake torque applied to every wheel when motor braking (reverse key held while moving forward). Usually lower than handbrake force.")]
     [SerializeField] private float motorBrakeForce = 500f;
 
+    [Tooltip("Brake torque applied to every wheel when no throttle input is held and no other brake is active. Simulates engine braking / rolling resistance so the car decelerates progressively to a stop rather than coasting forever. Set to 0 to disable.")]
+    [SerializeField] private float coastBrakeForce = 400f;
+
+    [Tooltip("Below this speed (m/s) the coast brake ramps to its full value, ensuring the car actually reaches 0 instead of crawling indefinitely.")]
+    [SerializeField] private float coastBrakeStopSpeed = 1.5f;
+
     [Tooltip("Fraction of the brake torque applied to the front wheels. 1 = same as rear (max stopping power, less steering), 0 = front wheels never brake (max steering responsiveness, weak braking). ~0.6 keeps both effective.")]
     [Range(0f, 1f)]
     [SerializeField] private float frontBrakeBias = 0.6f;
@@ -335,10 +341,24 @@ public class CarController : MonoBehaviour
         frontLeftWheel.motorTorque = torque;
         frontRightWheel.motorTorque = torque;
 
-        // Handbrake takes priority over motor brake when both are somehow active.
-        if      (isBraking)      currentBrakeForce = brakeForce;
-        else if (isMotorBraking) currentBrakeForce = motorBrakeForce;
-        else                     currentBrakeForce = 0f;
+        // Handbrake takes priority over motor brake; coast brake fills in when
+        // neither brake is held and no throttle is requested, so releasing the
+        // throttle decelerates the car progressively to a stop instead of
+        // letting it roll forever.
+        bool noThrottle = Mathf.Approximately(verticalInput, 0f);
+        if      (isBraking)              currentBrakeForce = brakeForce;
+        else if (isMotorBraking)         currentBrakeForce = motorBrakeForce;
+        else if (noThrottle && coastBrakeForce > 0f)
+        {
+            // Boost the coast brake as the car nears a stop so it actually
+            // settles at 0 instead of crawling under tiny rolling resistance.
+            float speed = Mathf.Abs(forwardSpeed);
+            float boost = coastBrakeStopSpeed > 0f
+                ? Mathf.Lerp(2f, 1f, Mathf.Clamp01(speed / coastBrakeStopSpeed))
+                : 1f;
+            currentBrakeForce = coastBrakeForce * boost;
+        }
+        else                             currentBrakeForce = 0f;
         ApplyBraking();
     }
 
