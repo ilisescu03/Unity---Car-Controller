@@ -863,11 +863,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
   motorForce: 1500
-  maxSteeringAngle: 50
+  maxSteeringAngle: 60
   steeringFalloffSpeed: 20
   highSpeedSteeringFactor: 0.604
+  steeringSpeed: 250
   brakeForce: 150000
   motorBrakeForce: 5000
+  coastBrakeForce: 400
+  coastBrakeStopSpeed: 1.5
   frontBrakeBias: 0.6
   motorBrakeSpeedThreshold: 0.5
   maxForwardSpeed: 34.1

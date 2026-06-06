@@ -475,6 +475,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 875733276095202181, guid: a23a5df4b886f6143aca130f09f89c20, type: 3}
+      propertyPath: steeringSpeed
+      value: 250
+      objectReference: {fileID: 0}
+    - target: {fileID: 875733276095202181, guid: a23a5df4b886f6143aca130f09f89c20, type: 3}
+      propertyPath: maxSteeringAngle
+      value: 60
+      objectReference: {fileID: 0}
     - target: {fileID: 3098045077524874269, guid: a23a5df4b886f6143aca130f09f89c20, type: 3}
       propertyPath: m_LocalPosition.x
       value: -2.0368416

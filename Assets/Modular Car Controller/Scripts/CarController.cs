@@ -31,6 +31,9 @@ public class CarController : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float highSpeedSteeringFactor = 0.35f;
 
+    [Tooltip("How fast the steering angle rotates toward its target, in degrees per second. Lower values feel heavier/slower; higher values feel snappier. Set very high to disable smoothing.")]
+    [SerializeField] private float steeringSpeed = 120f;
+
     [Tooltip("Brake torque applied to every wheel when the handbrake is held.")]
     [SerializeField] private float brakeForce = 4000f;
 
@@ -389,7 +392,10 @@ public class CarController : MonoBehaviour
         float t = steeringFalloffSpeed > 0f ? Mathf.Clamp01(speed / steeringFalloffSpeed) : 0f;
         float angleMultiplier = Mathf.Lerp(1f, highSpeedSteeringFactor, t);
 
-        currentSteeringAngle = maxSteeringAngle * angleMultiplier * horizontalInput;
+        float targetAngle = maxSteeringAngle * angleMultiplier * horizontalInput;
+        currentSteeringAngle = steeringSpeed > 0f
+            ? Mathf.MoveTowards(currentSteeringAngle, targetAngle, steeringSpeed * Time.fixedDeltaTime)
+            : targetAngle;
         frontLeftWheel.steerAngle = currentSteeringAngle;
         frontRightWheel.steerAngle = currentSteeringAngle;
     }
