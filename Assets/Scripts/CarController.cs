@@ -129,6 +129,12 @@ public class CarController : MonoBehaviour
     /// </summary>
     public float ForwardSpeed => rb != null ? Vector3.Dot(rb.linearVelocity, transform.forward) : 0f;
 
+    /// <summary>
+    /// Raw throttle input: +1 while accelerating forward, -1 while accelerating
+    /// in reverse, 0 while coasting or motor-braking. Does not reflect handbrake.
+    /// </summary>
+    public float Throttle => verticalInput;
+
     /// <summary>Whether the manual P/R/N/D gear system is currently active.</summary>
     public bool UseManualGears => useManualGears;
 
